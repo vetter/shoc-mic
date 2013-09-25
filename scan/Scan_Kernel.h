@@ -31,6 +31,10 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF 
 // THE POSSIBILITY OF SUCH DAMAGE.
+#include "offload.h"
+#ifdef __MIC__ ||__MIC2__
+#include <immintrin.h>
+#endif
 
 #include <string.h>
 
