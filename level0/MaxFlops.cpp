@@ -6,30 +6,30 @@
 // Copyright (c) 2011, UT-Battelle, LLC
 // Copyright (c) 2013, Intel Corporation
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
-//   
+//
 //  * Redistributions of source code must retain the above copyright
 //    notice, this list of conditions and the following disclaimer.
 //  * Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
 //    documentation and/or other materials provided with the distribution.
-//  * Neither the name of Oak Ridge National Laboratory, nor UT-Battelle, LLC, 
-//    nor the names of its contributors may be used to endorse or promote 
-//    products derived from this software without specific prior written 
+//  * Neither the name of Oak Ridge National Laboratory, nor UT-Battelle, LLC,
+//    nor the names of its contributors may be used to endorse or promote
+//    products derived from this software without specific prior written
 //    permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, 
-// OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF 
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+// OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 // THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdio.h>
@@ -77,7 +77,7 @@ void addBenchmarkSpecOptions(OptionParser &op)
 //   numFloats - length of hostMem array
 //
 // Returns:  nothing
-// 
+//
 // Modifications:
 //
 // ****************************************************************************
@@ -132,7 +132,7 @@ void InitData(T *hostMem, const int numFloats)
 // Function: RunBenchmark
 //
 // Purpose:
-//   Measures the floating point capability of the device for a variety of 
+//   Measures the floating point capability of the device for a variety of
 //   combinations of arithmetic operations.
 //
 // Arguments:
@@ -163,7 +163,7 @@ void RunBenchmark(OptionParser &op, ResultDatabase &resultDB)
     // Initialize progress bar
     int totalRuns = 16*passes*2;
     ProgressBar pb(totalRuns);
-    if (!verbose && !quiet) 
+    if (!verbose && !quiet)
     {
         pb.Show(stdout);
     }
@@ -178,7 +178,7 @@ void RunBenchmark(OptionParser &op, ResultDatabase &resultDB)
 
 template <class T>
 void RunTest(ResultDatabase &resultDB, const int npasses, const int verbose,
-        const int noPB, const float repeatF, ProgressBar &pb, 
+        const int noPB, const float repeatF, ProgressBar &pb,
         const char* precision, const int micdev)
 {
     char sizeStr[128];
@@ -210,10 +210,11 @@ void RunTest(ResultDatabase &resultDB, const int npasses, const int verbose,
             Add1_MIC<T>(numFloats,hostMem, realRepeats, 10.0);
         }
         t = curr_second()-TH;
-        flopCount = (double)numFloats * realRepeats * omp_get_num_threads();
+
+        flopCount = (double)numFloats * 1 * realRepeats * 240 ;
         gflop = flopCount / (double)(t*1e9);
         resultDB.AddResult(string("Add1")+precision, sizeStr, "GFLOPS", gflop);
-        
+
         #pragma offload target(mic:micdev) out(hostMem:length(numFloats) alloc_if(0))
         {}
         CheckResults<T>(hostMem,numFloats);
@@ -230,7 +231,8 @@ void RunTest(ResultDatabase &resultDB, const int npasses, const int verbose,
             Add2_MIC<T>(numFloats,hostMem, realRepeats, 10.0);
         }
         t = curr_second()-TH;
-        flopCount = (double)numFloats * realRepeats * 120 * 2;
+
+        flopCount = (double)numFloats * 2 * realRepeats * 120 ;
         gflop = flopCount / (double)(t*1e9);
         resultDB.AddResult(string("Add2")+precision, sizeStr, "GFLOPS", gflop);
         #pragma offload target(mic:micdev) out(hostMem:length(numFloats) alloc_if(0))
@@ -249,7 +251,8 @@ void RunTest(ResultDatabase &resultDB, const int npasses, const int verbose,
             Add4_MIC<T>(numFloats,hostMem, realRepeats, 10.0);
         }
         t = curr_second()-TH;
-        flopCount = (double)numFloats * realRepeats * 60 * 4;
+
+        flopCount = (double)numFloats *  4 * realRepeats * 60 ;
         gflop = flopCount / (double)(t*1e9);
         resultDB.AddResult(string("Add4")+precision, sizeStr, "GFLOPS", gflop);
         #pragma offload target(mic:micdev) out(hostMem:length(numFloats) alloc_if(0))
@@ -268,7 +271,7 @@ void RunTest(ResultDatabase &resultDB, const int npasses, const int verbose,
             Add8_MIC<T>(numFloats,hostMem, realRepeats, 10.0);
         }
         t = curr_second()-TH;
-        flopCount = (double)numFloats * realRepeats * 80 * 3;
+        flopCount = (double)numFloats * 8 * realRepeats * 30 ;
         gflop = flopCount / (double)(t*1e9);
         resultDB.AddResult(string("Add8")+precision, sizeStr, "GFLOPS", gflop);
         #pragma offload target(mic:micdev) out(hostMem:length(numFloats) alloc_if(0))
@@ -363,7 +366,8 @@ void RunTest(ResultDatabase &resultDB, const int npasses, const int verbose,
             MAdd1_MIC<T>(numFloats,hostMem, realRepeats, 10.0, 0.9899);
         }
         t = curr_second()-TH;
-        flopCount = (double)numFloats * 2 * realRepeats * omp_get_num_threads() * 1;
+
+        flopCount = (double)numFloats * 2 * realRepeats * 240;
         gflop = flopCount / (double)(t*1e9);
         resultDB.AddResult(string("MAdd1")+precision, sizeStr, "GFLOPS", gflop);
         #pragma offload target(mic:micdev) out(hostMem:length(numFloats) alloc_if(0))

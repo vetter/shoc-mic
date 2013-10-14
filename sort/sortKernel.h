@@ -6,30 +6,30 @@
 // Copyright (c) 2011, UT-Battelle, LLC
 // Copyright (c) 2013, Intel Corporation
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
-//   
+//
 //  * Redistributions of source code must retain the above copyright
 //    notice, this list of conditions and the following disclaimer.
 //  * Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
 //    documentation and/or other materials provided with the distribution.
-//  * Neither the name of Oak Ridge National Laboratory, nor UT-Battelle, LLC, 
-//    nor the names of its contributors may be used to endorse or promote 
-//    products derived from this software without specific prior written 
+//  * Neither the name of Oak Ridge National Laboratory, nor UT-Battelle, LLC,
+//    nor the names of its contributors may be used to endorse or promote
+//    products derived from this software without specific prior written
 //    permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, 
-// OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF 
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+// OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 // THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma offload_attribute(push,target(mic))
@@ -169,9 +169,9 @@ void Step1_Phase1(long id, int phase)
     unsigned int *Local_Hist = Hist + 2*(HIST_BINS)*id;
     unsigned int *Local_Hist2 = Hist + 2*(HIST_BINS)*id+HIST_BINS;
 
-    _BARRIER_; 
+    _BARRIER_;
     unsigned int *X_start = X + starting_element_id;
-    unsigned int *X_start_2 = X + starting_element_id + 
+    unsigned int *X_start_2 = X + starting_element_id +
         ((ending_element_id - starting_element_id)>>1);
     for (i=0; i< (((ending_element_id-starting_element_id)>>1)); i+=32)
     {
@@ -261,7 +261,7 @@ void Step2_Phase1(long id, int phase)
         {
             Hist[j*HIST_BINS + i] += Hist[start_col];
         }
-    } 
+    }
     _BARRIER_;
 }
 
@@ -271,9 +271,9 @@ __declspec(target(mic))
 void Step3_Buffer_Phase1(long id, int phase)
 {
     // The logic is the following:
-    // Read elements 16 at a time, put them into appropriate positions in 
-    // the buffer. The buffer is an array of HIST_BINS * BUFFER_SIZE, and 
-    // buffers BUFFER_SIZE entries per radix. As soon as a buffer line 
+    // Read elements 16 at a time, put them into appropriate positions in
+    // the buffer. The buffer is an array of HIST_BINS * BUFFER_SIZE, and
+    // buffers BUFFER_SIZE entries per radix. As soon as a buffer line
     // corresponding to a radix gets full, it is written out to memory.
 
     const int L2_DIST = 10;
@@ -288,7 +288,7 @@ void Step3_Buffer_Phase1(long id, int phase)
 
     unsigned int *Local_Hist = Hist + (HIST_BINS)*id*2;
     unsigned int *Local_Hist2 = Hist + (HIST_BINS)*id*2 + HIST_BINS;
-    unsigned int *tmpLocal = tmp + id*32; 
+    unsigned int *tmpLocal = tmp + id*32;
 
     unsigned int *Dest = Buf + BUFFER_SIZE*HIST_BINS*id;
     unsigned int *vDest = vBuf + BUFFER_SIZE*HIST_BINS*id;
@@ -297,9 +297,9 @@ void Step3_Buffer_Phase1(long id, int phase)
     unsigned int start_cnt[HIST_BINS];
 
     for (unsigned i = 0; i < HIST_BINS; i++)
-    { 
-        steady_state[i] = 0; 
-        start_cnt[i] = Local_Hist[i]; 
+    {
+        steady_state[i] = 0;
+        start_cnt[i] = Local_Hist[i];
     }
 
     // Set up masks for buffer management
@@ -312,11 +312,11 @@ void Step3_Buffer_Phase1(long id, int phase)
     };
 
     unsigned int *X_start = X + starting_element_id;
-    unsigned int *X_start_2 = X + starting_element_id + 
+    unsigned int *X_start_2 = X + starting_element_id +
         ((ending_element_id - starting_element_id)>>1);
 
     unsigned int *Z_start = Z + starting_element_id;
-    unsigned int *Z_start_2 = Z + starting_element_id + 
+    unsigned int *Z_start_2 = Z + starting_element_id +
         ((ending_element_id - starting_element_id)>>1);
 
     unsigned int log_hist_bins = LOG_HIST_BINS;
@@ -325,16 +325,16 @@ void Step3_Buffer_Phase1(long id, int phase)
 
     _BARRIER_;
 
-#define STEP_SIZE 32 
+#define STEP_SIZE 32
 
-    for (i = 0; i < ((ending_element_id - starting_element_id)>>1); 
+    for (i = 0; i < ((ending_element_id - starting_element_id)>>1);
                     i += STEP_SIZE)
     {
         tmpLocal[0:16] = (X_start[i:16]>>(phase*LOG_HIST_BINS))&and_mask;
         tmpLocal[16:16] = (X_start[i+16:16]>>(phase*LOG_HIST_BINS))&and_mask;
 
-        // For each element, do scalar computation to find the buffer position 
-        // to write to. This is done with a histogram update followed by a write 
+        // For each element, do scalar computation to find the buffer position
+        // to write to. This is done with a histogram update followed by a write
         // to local buffer
 
         for (unsigned j = 0; j < STEP_SIZE; j++)
@@ -350,26 +350,26 @@ void Step3_Buffer_Phase1(long id, int phase)
             vDest[index*BUFFER_SIZE + cnt%BUFFER_SIZE] = vin;
 
             // detect if buffer line is full
-            if (cnt%BUFFER_SIZE == BUFFER_SIZE_1) 
+            if (cnt%BUFFER_SIZE == BUFFER_SIZE_1)
             {
                 // if so, write out the line
-                //   this has two special cases: the first time we write a 
-                //   line correpsonding to a radix, and the last time we 
+                //   this has two special cases: the first time we write a
+                //   line correpsonding to a radix, and the last time we
                 //   flush buffer values in a line.
-                
-                //   For the first time, we may start with an unaligned 
+
+                //   For the first time, we may start with an unaligned
                 //   address: then we compute the start of the cache line
-                //   corresponding to the write value, and write only 
+                //   corresponding to the write value, and write only
                 //   the correct subset of the elements using a masked store.
                 //   The last flush is handled separately.
                 unsigned int * Y_start = Y + cnt - BUFFER_SIZE_1;
                 unsigned int * V_start = V + cnt - BUFFER_SIZE_1;
 
-                if (steady_state[index]) 
+                if (steady_state[index])
                 {
-                    // This is the normal case, when we write the entire 
+                    // This is the normal case, when we write the entire
                     // buffer line.
-                    // There is a loss in perf here in moving from intirin->C. 
+                    // There is a loss in perf here in moving from intirin->C.
                     #pragma vector aligned
                     Y_start[0:16] = Dest[index*BUFFER_SIZE:16];
                     V_start[0:16] = vDest[index*BUFFER_SIZE:16];
@@ -378,7 +378,7 @@ void Step3_Buffer_Phase1(long id, int phase)
                 {
                     // special case for first write
                     steady_state[index] = 1;
-                    unsigned int m1 = 
+                    unsigned int m1 =
                             mask_constants[start_cnt[index]%BUFFER_SIZE];
                     #pragma unroll(16)
                     for (int k=0;k<16;k++)
@@ -394,8 +394,8 @@ void Step3_Buffer_Phase1(long id, int phase)
         }
     }
 
-    // this handles the last flush of remaining buffer elements to memory: 
-    // This is scalar for now. Can also be LRBized - but is not a 
+    // this handles the last flush of remaining buffer elements to memory:
+    // This is scalar for now. Can also be LRBized - but is not a
     // bottleneck for large input sets.
     for (unsigned i = 0; i < HIST_BINS; i++)
     {
@@ -411,13 +411,13 @@ void Step3_Buffer_Phase1(long id, int phase)
         }
     }
 
-    // All code below is a repetition of the code above to handle a different 
-    // element in a thread: as in Step1, we use 1 thread to work on two 
-    // different blocks of inputs to improve Step1 
+    // All code below is a repetition of the code above to handle a different
+    // element in a thread: as in Step1, we use 1 thread to work on two
+    // different blocks of inputs to improve Step1
     for (unsigned i = 0; i < HIST_BINS; i++)
-    { 
-        steady_state[i] = 0; 
-        start_cnt[i] = Local_Hist2[i]; 
+    {
+        steady_state[i] = 0;
+        start_cnt[i] = Local_Hist2[i];
     }
 
     for (i=0; i < ((ending_element_id - starting_element_id)>>1); i+=STEP_SIZE)
@@ -440,7 +440,7 @@ void Step3_Buffer_Phase1(long id, int phase)
                 unsigned int * Y_start = Y + cnt - BUFFER_SIZE_1;
                 unsigned int * V_start = V + cnt - BUFFER_SIZE_1;
 
-                if (steady_state[index]) 
+                if (steady_state[index])
                 {
                     Y_start[0:16]= Dest[index*BUFFER_SIZE:16];
                     V_start[0:16]= vDest[index*BUFFER_SIZE:16];
@@ -449,7 +449,7 @@ void Step3_Buffer_Phase1(long id, int phase)
                 {
                     steady_state[index] = 1;
 
-                    unsigned int m1 = 
+                    unsigned int m1 =
                             mask_constants[start_cnt[index]%BUFFER_SIZE];
 
                     #pragma unroll(16)
@@ -505,7 +505,7 @@ void *sort(void *id)
     {
         if (id==0)
         {
-            for (int i = 0; i < (HIST_BINS)*ntasks*2; i++) 
+            for (int i = 0; i < (HIST_BINS)*ntasks*2; i++)
             {
                 Hist[i] = 0;
             }
@@ -521,11 +521,11 @@ void *sort(void *id)
         }
     }
     pthread_exit(NULL);
-} 
+}
 
 template <class T>
 __declspec(target(mic))
-extern void sortKernelMIC(T* hkey, T* hvalue, T* outkey, T* outvalue, 
+extern void sortKernelMIC(T* hkey, T* hvalue, T* outkey, T* outvalue,
         const size_t N, int numThreads)
 {
     tdata.numElements = N;
@@ -549,7 +549,7 @@ extern void sortKernelMIC(T* hkey, T* hvalue, T* outkey, T* outvalue,
 
     // Allocate data
     X =  hkey;
-    Y =  outkey; 
+    Y =  outkey;
     Z =  hvalue;
     V = outvalue; //(unsigned int *)my_malloc(N*sizeof(unsigned int));
     Hist = (unsigned int *)my_malloc(ntasks*2*(HIST_BINS)*sizeof(unsigned int));
@@ -573,12 +573,12 @@ extern void sortKernelMIC(T* hkey, T* hvalue, T* outkey, T* outvalue,
     pthread_aff_mask_initialize_np(&aff_mask, 0);
 #endif
 
-    { 
-        for (int i = 0; i < (HIST_BINS)*ntasks*2; i++) 
+    {
+        for (int i = 0; i < (HIST_BINS)*ntasks*2; i++)
         {
             Hist[i] = 0;
         }
-        for (long i=1; i<Thread; i++) 
+        for (long i=1; i<Thread; i++)
         {
 #ifdef AFFINITIZE
             pthread_aff_mask_set_np(&aff_mask, 0, i+(MAX_THREAD-MAX_WORKER));
@@ -601,7 +601,7 @@ extern void sortKernelMIC(T* hkey, T* hvalue, T* outkey, T* outvalue,
         pthread_aff_mask_clear_np(&aff_mask, 0, (MAX_THREAD-MAX_WORKER));
 #endif
     }
-    for (int i=1; i<Thread; i++) 
+    for (int i=1; i<Thread; i++)
     {
         int ret;
         pthread_join(th[i], (void **)&ret);
@@ -627,7 +627,6 @@ __declspec(target(mic))
 extern void sortKernel(T* hkey, T* hvalue, T* outkey, T* outvalue,
         const size_t n, int numThreads)
 {
-#ifdef __MIC__
     if (numThreads > MAX_WORKER)
     {
         printf("numthreads > Max Workers\n");
@@ -635,7 +634,6 @@ extern void sortKernel(T* hkey, T* hvalue, T* outkey, T* outvalue,
     }
     // sorted output placed in hvalue
     sortKernelMIC(hkey,  hvalue, outkey, outvalue, n, numThreads);
-#endif 
     return;
 }
 

@@ -6,30 +6,30 @@
 // Copyright (c) 2011, UT-Battelle, LLC
 // Copyright (c) 2013, Intel Corporation
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
-//   
+//
 //  * Redistributions of source code must retain the above copyright
 //    notice, this list of conditions and the following disclaimer.
 //  * Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
 //    documentation and/or other materials provided with the distribution.
-//  * Neither the name of Oak Ridge National Laboratory, nor UT-Battelle, LLC, 
-//    nor the names of its contributors may be used to endorse or promote 
-//    products derived from this software without specific prior written 
+//  * Neither the name of Oak Ridge National Laboratory, nor UT-Battelle, LLC,
+//    nor the names of its contributors may be used to endorse or promote
+//    products derived from this software without specific prior written
 //    permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, 
-// OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF 
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+// OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 // THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <iomanip>
@@ -43,9 +43,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
-
-#include <mkl_service.h>
-#include <mkl_blas.h>
+#include <mkl.h>
 #include "omp.h"
 
 #include "offload.h"
@@ -157,30 +155,39 @@ void addBenchmarkSpecOptions(OptionParser &op)
 // ****************************************************************************
 
 // The following two methods are just a templatized call to GEMM.
-template<> 
-inline __declspec(target(MIC)) void devGEMM<double>(char transa, char transb, 
-        int m, int n, int k, double alpha, const double *A, int lda, 
-        const double *B, int ldb, double beta, double *C, int ldc) 
+template<>
+inline __declspec(target(MIC)) void devGEMM<double>(char transa, char transb,
+        int m, int n, int k, double alpha, const double *A, int lda,
+        const double *B, int ldb, double beta, double *C, int ldc)
 {
+    CBLAS_ORDER       order=CblasRowMajor;
+    CBLAS_TRANSPOSE   transposeA= (transa=='N'?CblasNoTrans:CblasTrans);
+    CBLAS_TRANSPOSE   transposeB = (transb=='N'?CblasNoTrans:CblasTrans);
 
-    dgemm(&transa, &transb, &m, &n, &k, &alpha,
-        A, &lda, B, &ldb, &beta, C, &ldc);
+    cblas_dgemm(order, transposeA, transposeB, m, n, k, alpha,
+        A, lda, B, ldb, beta, C, ldc);
 }
 
 template <>
-inline __declspec(target(MIC)) void devGEMM<float>(char transa, char transb, 
-        int m, int n, int k, float alpha, const float *A, int lda, 
+inline __declspec(target(MIC)) void devGEMM<float>(char transa, char transb,
+        int m, int n, int k, float alpha, const float *A, int lda,
         const float *B, int ldb, float beta, float *C, int ldc )
 {
-    sgemm(&transa, &transb, &m, &n, &k, &alpha,
-           A, &lda, B, &ldb, &beta, C, &ldc);
+
+    CBLAS_ORDER       order=CblasRowMajor;
+    CBLAS_TRANSPOSE   transposeA= (transa=='N'?CblasNoTrans:CblasTrans);
+    CBLAS_TRANSPOSE   transposeB = (transb=='N'?CblasNoTrans:CblasTrans);
+
+    cblas_sgemm(order, transposeA, transposeB, m, n, k, alpha,
+        A, lda, B, ldb, beta, C, ldc);
+
 }
 
 void RunBenchmark(OptionParser &op, ResultDatabase &resultDB)
 {
     cout << "Running single precision test" << endl;
     RunTest<float>("SGEMM", resultDB, op);
-    
+
     cout << "Running double precision test" << endl;
     RunTest<double>("DGEMM", resultDB, op);
 }
@@ -192,10 +199,10 @@ template <class T>
 void RunTest(string testName, ResultDatabase &resultDB, OptionParser &op)
 {
     const int micdev = op.getOptionInt("target");
-    
+
     // Repeat the test multiple times
     int passes = op.getOptionInt("passes");
-   
+
     // Dimension of the matrix
     int N;
 
@@ -209,13 +216,13 @@ void RunTest(string testName, ResultDatabase &resultDB, OptionParser &op)
         int probSizes[4] = { 1, 4, 8, 16 };
         N = probSizes[op.getOptionInt("size")-1] * 1024 / sizeof(T);
     }
-    else if((op.getOptionInt("KiB") == 0)) 
+    else if((op.getOptionInt("KiB") == 0))
     {
-        N = op.getOptionInt("N"); 
+        N = op.getOptionInt("N");
         // For double we run half the size matrices
         N = N / (sizeof (T)/sizeof(float));
     }
-    else 
+    else
     {
         N = op.getOptionInt("KiB") * 1024 / sizeof(T);
     }
@@ -230,7 +237,7 @@ void RunTest(string testName, ResultDatabase &resultDB, OptionParser &op)
     // Use a square matrix
     size_t matrix_elements = LDA * N;
     size_t matrix_bytes = matrix_elements * sizeof(T);
-   
+
     // Allocate memory for the matrices
     const int alignment = 2 * 1024 * 1024;
     A = (T *)_mm_malloc(matrix_bytes, alignment);
@@ -242,7 +249,7 @@ void RunTest(string testName, ResultDatabase &resultDB, OptionParser &op)
         cerr << "memory allocation failed" << endl;
         return;
     }
-   
+
     // Fill the matrices with some random data
     fill<T>(A, LDA * N, 31);
     fill<T>(B, LDA * N, 31);
@@ -259,7 +266,7 @@ void RunTest(string testName, ResultDatabase &resultDB, OptionParser &op)
 
     // Timing variables
     double start_time, transfer_time;
-    
+
     // Start the timer for the PCIe transfer
     // curr_second is a gettimeofday() timer
     start_time = curr_second();
@@ -301,14 +308,14 @@ void RunTest(string testName, ResultDatabase &resultDB, OptionParser &op)
                 const T alpha = 1;
                 const T beta = -1;
 
-                // Warm up, the reason of this # pragma loop is to load 
+                // Warm up, the reason of this # pragma loop is to load
                 // necessary libraries.
-                devGEMM<T>(transa, transb, m, n, k, alpha, A, lda, B, ldb, 
+                devGEMM<T>(transa, transb, m, n, k, alpha, A, lda, B, ldb,
                         beta, C, ldc);
             }
 
             // Time it takes for the actual gemm call
-            double blas_time; 
+            double blas_time;
             double startTime=curr_second();
 
             const T alpha = 1;
@@ -317,7 +324,7 @@ void RunTest(string testName, ResultDatabase &resultDB, OptionParser &op)
             #pragma offload target(MIC:micdev) \
                             nocopy(A)          \
                             nocopy(B)          \
-                            nocopy(C)  
+                            nocopy(C)
             {
                 // Do 4 iterations
                 for (int ii = 0; ii < 4; ++ii)
