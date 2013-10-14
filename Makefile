@@ -4,10 +4,10 @@ CPP   = icc
 LD    = icc
 CXX   = icc
 
-SHOC_COMMON   =./common
-MICROOT       =./bin
-BINDIR        =./bin
-OBJDIR        =./obj
+SHOC_COMMON   = ./common
+MICROOT       = ./bin
+BINDIR        = ./bin
+OBJDIR        = ./obj
 
 # Workload folders
 VPATH=$(SHOC_COMMON) level0 md reduction scan triad spmv sort fft gemm s3d mc
@@ -17,10 +17,20 @@ COMMON_OBJS        = main.o Option.o OptionParser.o Timer.o ResultDatabase.o Pro
 COMMON_OBJFILES = $(addprefix $(OBJDIR)/, $(COMMON_OBJS))
 
 # Workload objects
-BENCH_OBJS = BusSpeedReadback.o BusSpeedDownload.o DeviceMemory.o MaxFlops.o \
-         MD.o S3D.o            \
-         Reduction.o Scan.o Triad.o \
-         Spmv.o GEMM.o FFT.o MC.o
+BENCH_OBJS = BusSpeedReadback.o \
+             BusSpeedDownload.o \
+             DeviceMemory.o     \
+             MaxFlops.o         \
+             MD.o               \
+             S3D.o              \
+             Reduction.o        \
+             Scan.o             \
+             Triad.o            \
+             Spmv.o             \
+             GEMM.o             \
+             FFT.o              \
+             MC.o
+
 BENCHMARKPROG = $(patsubst %.o,$(BINDIR)/%,$(BENCH_OBJS))
 
 # Flags to include MIC MKL library
@@ -28,11 +38,12 @@ MIC_MKL_LIBS     = -lmkl_core
 
 # Flags to enable compiler reporting - Modify according detail level needs
 REPORTING     = -opt-report-phase:offload -vec-report1
-# -vec-report0 -opt-report 1 -vec-report0 -opt-report-phase:offload -openmp-report
 
 # Compiler flags
-CFLAGS           = -O3 -openmp -parallel -intel-extensions -I$(SHOC_COMMON) -mP2OPT_hlo_pref_issue_second_level_prefetch=F -mP2OPT_hlo_pref_issue_first_level_prefetch=F    \
-           -offload-option,mic,compiler,"-mP2OPT_hpo_vec_check_dp_trip=F -fimf-precision=low -fimf-domain-exclusion=15" $(REPORTING)
+CFLAGS           = -O3 -openmp -parallel -intel-extensions -I$(SHOC_COMMON) \
+                   -mP2OPT_hlo_pref_issue_second_level_prefetch=F           \
+                   -mP2OPT_hlo_pref_issue_first_level_prefetch=F            \
+                   -offload-option,mic,compiler,"-mP2OPT_hpo_vec_check_dp_trip=F -fimf-precision=low -fimf-domain-exclusion=15" $(REPORTING)
 
 # Workload specific compiler flags
 STENCIL_CPPFLAGS =
@@ -41,20 +52,20 @@ STENCIL_CPPFLAGS =
 LDFLAGS        = -mkl
 
 $(OBJDIR)/%.o: %.cpp
-    $(CC) -c $< $(CFLAGS) $(CXXFLAGS) -o $@
+	$(CC) -c $< $(CFLAGS) $(CXXFLAGS) -o $@
 
 $(BINDIR)/%: $(OBJDIR)/%.o
-    $(CC) -o $@ $(CFLAGS) $(CXXFLAGS) $(LDFLAGS) $(COMMON_OBJFILES) $< $(LIBS)
+	$(CC) -o $@ $(CFLAGS) $(CXXFLAGS) $(LDFLAGS) $(COMMON_OBJFILES) $< $(LIBS)
 
 all : $(BENCHMARKPROG)
-    for d in $(SUBDIRS); do (cd $$d; $(MAKE) ); done
+	for d in $(SUBDIRS); do (cd $$d; $(MAKE) ); done
 
 $(BENCHMARKPROG) : $(COMMON_OBJFILES)
 
 clean :
-    rm $(OBJDIR)/*
-    rm $(BINDIR)/*
-    make -C ./stencil2d clean
+	rm $(OBJDIR)/*
+	ls $(BINDIR)/* | grep -v runbench.sh | xargs rm
+	make -C ./stencil2d clean
 
 # Individual Targets
 
@@ -100,6 +111,6 @@ mc : $(BINDIR)/MC
 
 # Stencil 2D
 stencil2d:
-    make -C ./stencil2d
+	make -C ./stencil2d
 
 .PHONY: stencil2d clean all
