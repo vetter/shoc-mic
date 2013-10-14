@@ -63,6 +63,7 @@ all : $(BENCHMARKPROG)
 $(BENCHMARKPROG) : $(COMMON_OBJFILES)
 
 clean :
+	rm ./*.o
 	rm $(OBJDIR)/*
 	ls $(BINDIR)/* | grep -v runbench.sh | xargs rm
 	make -C ./stencil2d clean
